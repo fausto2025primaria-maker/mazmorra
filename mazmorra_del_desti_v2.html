@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Mazmorra del Destí — V2</title>
+<style>
+  :root{
+    --bg:#17110d;
+    --panel:#2b1d16;
+    --panel2:#3a281f;
+    --edge:#8b6a43;
+    --gold:#d8b16b;
+    --text:#f2e7d3;
+    --muted:#c8b79e;
+    --danger:#c9554d;
+    --good:#69a86b;
+    --elite:#8a5de0;
+    --combat:#b66b3d;
+    --merchant:#3f83a8;
+    --rest:#4f9b62;
+    --treasure:#b9982c;
+    --boss:#a83f48;
+    --shadow: 0 12px 30px rgba(0,0,0,.35);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:
+      radial-gradient(circle at top, rgba(255,255,255,.05), transparent 25%),
+      linear-gradient(180deg, #241811 0%, #17110d 100%);
+    color:var(--text);
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  body{padding:14px}
+  .app{max-width:1450px;margin:0 auto}
+  .header,.panel,.actions,.footer-bar,.modal-card{
+    border:2px solid rgba(216,177,107,.35);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.08)),
+      linear-gradient(180deg, var(--panel2), var(--panel));
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+  }
+  .header{padding:14px 18px;margin-bottom:12px}
+  .header-top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .title{font-size:clamp(26px,4vw,42px);font-weight:700;letter-spacing:.5px;color:#f7e9c9;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+  .subtitle{color:var(--muted);font-size:14px}
+  .progress-wrap{margin-top:10px;display:grid;gap:6px}
+  .progress-label{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:14px}
+  .bar{width:100%;height:18px;background:#120c09;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  .bar > span{display:block;height:100%;width:0%;background:linear-gradient(90deg, #8e5b2b, #d8b16b);transition:width .35s ease}
+  .top-grid{display:grid;grid-template-columns: 1.2fr .8fr;gap:12px;margin-bottom:12px}
+  .panel{padding:14px}
+  .panel h2{margin:0 0 10px 0;font-size:20px;color:#f7e9c9}
+  .map-wrap{position:relative}
+  .map-board{
+    position:relative;
+    min-height:390px;
+    border-radius:14px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.08);
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,255,255,.05), transparent 25%),
+      linear-gradient(180deg, #4c3928 0%, #2a1d15 100%);
+  }
+  .map-board::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 1px, transparent 1px, transparent 34px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.02) 1px, transparent 1px, transparent 34px);
+    pointer-events:none;
+  }
+  .map-board svg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    pointer-events:none;
+  }
+  .node{
+    position:absolute;
+    width:72px; height:72px;
+    border-radius:50%;
+    border:3px solid rgba(255,245,220,.55);
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px;
+    color:#fff7e6;
+    box-shadow: 0 8px 18px rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.18);
+    transform:translate(-50%,-50%) scale(1);
+    transition: transform .14s ease, filter .14s ease, box-shadow .14s ease, opacity .2s ease;
+    user-select:none;
+  }
+  .node.smalltext{font-size:12px; text-align:center; line-height:1.05; padding:10px}
+  .node.available{cursor:pointer; filter:brightness(1.08)}
+  .node.available:hover{transform:translate(-50%,-50%) scale(1.08)}
+  .node.current{box-shadow:0 0 0 6px rgba(255,240,190,.13), 0 0 24px rgba(255,214,100,.35), 0 8px 18px rgba(0,0,0,.28)}
+  .node.completed{opacity:.62}
+  .node.locked{opacity:.32}
+  .node.combat{background:linear-gradient(180deg,#c37c45,#82461f)}
+  .node.elite{background:linear-gradient(180deg,#9f7ef0,#5a35b7)}
+  .node.treasure{background:linear-gradient(180deg,#d3b64b,#86680e)}
+  .node.rest{background:linear-gradient(180deg,#67b07c,#2d6b3b)}
+  .node.merchant{background:linear-gradient(180deg,#5ea7cf,#285a75)}
+  .node.boss{background:linear-gradient(180deg,#c65a64,#76202a)}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);color:#f7e9c9;font-size:14px
+  }
+  .right-col{display:grid;gap:12px}
+  .hero-portrait,.scene-image,.enemy-portrait{
+    width:100%; aspect-ratio: 4 / 3; border-radius:14px; overflow:hidden;
+    border:1px solid rgba(255,255,255,.08); background:#120c09;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  }
+  .hero-portrait img,.scene-image img,.enemy-portrait img{width:100%;height:100%;object-fit:cover;display:block}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px}
+  .stat .k{display:block;color:var(--muted);font-size:13px}
+  .stat .v{font-size:22px;font-weight:700;color:#fff1d2}
+  .life-wrap{margin-top:10px}
+  .life-label{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--muted);margin-bottom:5px}
+  .life-bar{height:16px;border-radius:999px;overflow:hidden;background:#100a08;border:1px solid rgba(255,255,255,.08)}
+  .life-bar span{display:block;height:100%;background:linear-gradient(90deg,#8c2424,#d35f58);width:100%;transition:width .28s ease}
+  .life-bar.hero span{background:linear-gradient(90deg,#3a7740,#78c07a)}
+  .main-grid{display:grid;grid-template-columns: 300px 1fr 320px;gap:12px}
+  .mini{margin-top:10px;padding:10px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+  .mini h3{margin:0 0 8px 0;font-size:16px;color:#f2d79b}
+  .inventory{display:grid;gap:8px}
+  .badge{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;letter-spacing:.4px;text-transform:uppercase;background:rgba(255,255,255,.06);color:#f2d79b;border:1px solid rgba(255,255,255,.09);margin-bottom:8px}
+  .scene-title{margin:0;font-size:24px;color:#fbe7b8}
+  .scene-text{margin:10px 0 0 0;font-size:18px;line-height:1.45;color:#f3e6d4}
+  .combat-log{margin-top:12px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;height:250px;overflow:auto;font-size:15px;line-height:1.45}
+  .combat-log p{margin:0 0 8px 0;color:#e9dbc6}
+  .combat-log p:last-child{margin-bottom:0}
+  .small-note{color:var(--muted);font-size:13px}
+  .actions{margin-top:12px;padding:12px;display:grid;gap:10px}
+  .buttons{display:grid;grid-template-columns: repeat(4, 1fr);gap:10px}
+  button{
+    appearance:none;border:none;padding:14px 12px;border-radius:14px;
+    background:linear-gradient(180deg,#6d4a2c,#4e341f);color:#fff1d2;font:inherit;
+    font-size:18px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 4px 10px rgba(0,0,0,.24);
+    transition: transform .08s ease, filter .15s ease, opacity .2s ease;
+  }
+  button:hover{filter:brightness(1.06)}
+  button:active{transform:translateY(1px)}
+  button.secondary{background:linear-gradient(180deg,#4b4c55,#35363c)}
+  button.good{background:linear-gradient(180deg,#4b7d4f,#345838)}
+  button.danger{background:linear-gradient(180deg,#8a413b,#682a25)}
+  button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.15)}
+  .footer-bar{margin-top:12px;padding:12px;display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+  .modal.show{display:flex}
+  .modal-card{max-width:760px;width:100%;padding:18px}
+  .modal-card h3{margin:0 0 8px 0;font-size:28px;color:#fde6a8}
+  .modal-card p{font-size:18px;line-height:1.5;color:#f2e7d3}
+  @media (max-width: 1100px){
+    .top-grid,.main-grid{grid-template-columns:1fr}
+  }
+  @media (max-width: 760px){
+    .buttons{grid-template-columns:1fr 1fr}
+    button{font-size:17px}
+    .scene-text{font-size:17px}
+    .node{width:64px;height:64px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="title">🏰 Mazmorra del Destí — V2</div>
+        <div class="subtitle">Ara amb mapa visual, rutes i més possibilitats de prendre males decisions amb estil.</div>
+      </div>
+      <div class="chip" id="floorLabel">Mapa no iniciat</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Camí cap al jefe final</span>
+        <span id="progressText">0%</span>
+      </div>
+      <div class="bar"><span id="progressBar"></span></div>
+    </div>
+  </div>
+
+  <div class="top-grid">
+    <section class="panel">
+      <h2>🗺️ Mapa de la mazmorra</h2>
+      <div class="map-wrap">
+        <div class="map-board" id="mapBoard">
+          <svg id="mapLines" viewBox="0 0 1000 600" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="chip">⚔️ Combat</span>
+        <span class="chip">👹 Elite</span>
+        <span class="chip">💰 Cofre</span>
+        <span class="chip">🔥 Descans</span>
+        <span class="chip">🧙 Mercader</span>
+        <span class="chip">👑 Boss</span>
+      </div>
+    </section>
+
+    <section class="right-col">
+      <div class="panel">
+        <h2>🧙 Heroi</h2>
+        <div class="hero-portrait"><img id="heroImg" alt="Heroi" /></div>
+        <div class="life-wrap">
+          <div class="life-label"><span>Vida de l’heroi</span><span id="heroHpText">30 / 30</span></div>
+          <div class="life-bar hero"><span id="heroHpBar"></span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="k">Atac</span><span class="v" id="heroAtk">5</span></div>
+          <div class="stat"><span class="k">Defensa</span><span class="v" id="heroDef">3</span></div>
+          <div class="stat"><span class="k">Nivell</span><span class="v" id="heroLvl">1</span></div>
+          <div class="stat"><span class="k">XP</span><span class="v" id="heroXp">0 / 10</span></div>
+          <div class="stat"><span class="k">Or</span><span class="v" id="heroGold">0</span></div>
+          <div class="stat"><span class="k">Pocions</span><span class="v" id="heroPotions">2</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🎒 Inventari curt però apanyat</h2>
+        <div class="inventory" id="inventoryList"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="main-grid">
+    <section class="panel">
+      <h2>👹 Enemic / Sala</h2>
+      <div class="enemy-portrait"><img id="enemyImg" alt="Enemic" /></div>
+      <div class="mini" style="margin-top:10px">
+        <h3 id="enemyName">Cap enemic actiu</h3>
+        <div class="life-wrap">
+          <div class="life-label"><span>Vida enemiga</span><span id="enemyHpText">—</span></div>
+          <div class="life-bar"><span id="enemyHpBar" style="width:0%"></span></div>
+        </div>
+        <div class="stats" style="margin-top:10px">
+          <div class="stat"><span class="k">Atac</span><span class="v" id="enemyAtk">—</span></div>
+          <div class="stat"><span class="k">Defensa</span><span class="v" id="enemyDef">—</span></div>
+        </div>
+        <div class="small-note" id="enemyDesc" style="margin-top:10px">Tria un node del mapa per començar.</div>
+      </div>
+
+      <div class="mini">
+        <h3>✨ Habilitat</h3>
+        <div class="small-note" style="font-size:16px; line-height:1.45">
+          <strong>Estocada Heroicament Desproporcionada</strong><br>
+          Un colp més fort del normal. Poc elegant. Bastant convincent.
+        </div>
+        <div class="small-note" id="skillState" style="margin-top:8px">Disponible</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="badge" id="roomTypeBadge">Sala desconeguda</div>
+      <h2 class="scene-title" id="sceneTitle">Tria una ruta</h2>
+      <div class="scene-image"><img id="sceneImg" alt="Escena" /></div>
+      <p class="scene-text" id="sceneText">Ara no avances linealment: tries el teu camí. Això et fa més lliure i, per tant, més responsable del desastre.</p>
+      <div class="mini">
+        <h3>📜 Registre</h3>
+        <div class="combat-log" id="combatLog"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>⚔️ Accions</h2>
+      <div class="actions" style="margin-top:0;padding:0;background:none;border:none;box-shadow:none">
+        <div class="buttons">
+          <button id="attackBtn">⚔️ Atacar</button>
+          <button id="defendBtn" class="secondary">🛡️ Defensar</button>
+          <button id="skillBtn">✨ Habilitat</button>
+          <button id="potionBtn" class="good">🧪 Poció</button>
+        </div>
+        <div class="small-note">
+          Consell: en V2 ja no sols importa pegar. També importa cap on vas a pegar després.
+        </div>
+      </div>
+
+      <div class="mini" style="margin-top:14px">
+        <h3>🧭 Estat de la ruta</h3>
+        <div class="small-note" id="routeText" style="font-size:16px;line-height:1.45">
+          Encara no has triat cap node.
+        </div>
+      </div>
+
+      <div class="footer-bar" style="margin-top:14px">
+        <button id="restartBtn" class="danger">↺ Reiniciar partida</button>
+        <button id="showMapHelp" class="secondary">❔ Ajuda del mapa</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3 id="modalTitle">Fi</h3>
+    <p id="modalText"></p>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+      <button id="modalRestart">Tornar a començar</button>
+      <button id="modalClose" class="secondary">Tancar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function svgDataUri(svg){
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg.trim());
+  }
+  function makeSVG(title, subtitle, colors, icon){
+    return svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+        <defs>
+          <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="${colors[0]}"/>
+            <stop offset="100%" stop-color="${colors[1]}"/>
+          </linearGradient>
+          <filter id="s"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/></filter>
+        </defs>
+        <rect width="800" height="600" fill="url(#g)"/>
+        <circle cx="665" cy="110" r="68" fill="rgba(255,255,255,.12)"/>
+        <circle cx="125" cy="510" r="94" fill="rgba(0,0,0,.10)"/>
+        <rect x="36" y="36" width="728" height="528" rx="26" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="4"/>
+        <text x="60" y="125" font-family="Georgia, serif" font-size="120" fill="rgba(255,248,230,.92)" filter="url(#s)">${icon}</text>
+        <text x="60" y="220" font-family="Georgia, serif" font-size="48" fill="#fff4d7" font-weight="700">${title}</text>
+        <text x="60" y="276" font-family="Georgia, serif" font-size="24" fill="rgba(255,243,219,.86)">${subtitle}</text>
+        <rect x="60" y="340" width="680" height="10" rx="5" fill="rgba(255,255,255,.12)"/>
+        <rect x="60" y="372" width="520" height="10" rx="5" fill="rgba(255,255,255,.08)"/>
+        <rect x="60" y="404" width="600" height="10" rx="5" fill="rgba(255,255,255,.08)"/>
+        <rect x="60" y="436" width="480" height="10" rx="5" fill="rgba(255,255,255,.08)"/>
+      </svg>
+    `);
+  }
+
+  const art = {
+    hero: makeSVG("Sir Absurd de la Llança Tíbia", "Valent, optimista i estadísticament qüestionable.", ["#66704a","#2f3420"], "🧙"),
+    combat: makeSVG("Sala de Combat", "Algú t’ha vist. I no li has agradat.", ["#65312d","#24110f"], "⚔️"),
+    elite: makeSVG("Enemic Elite", "Més gran, més dur i igualment antipàtic.", ["#60439a","#211434"], "👹"),
+    treasure: makeSVG("Cofre", "Tresor o decepció. Amb tapa.", ["#7a5a2a","#2c1e10"], "💰"),
+    rest: makeSVG("Descans", "Un moment de pau enmig d’un lloc gens civilitzat.", ["#3f6547","#18271d"], "🔥"),
+    merchant: makeSVG("Mercader", "Somriu massa. Això mai abarateix res.", ["#5d4b33","#23170f"], "🧙"),
+    boss: makeSVG("Jefe Final", "Ara sí, drama de màxim nivell.", ["#6e1f23","#220b0c"], "👑"),
+    goblin: makeSVG("Goblin Escandalosament Motivé", "Petit, verd i completament convençut.", ["#59713a","#1f2912"], "👹"),
+    skeleton: makeSVG("Esquelet Administratiu", "No té carn, però sí molt de temps lliure.", ["#707070","#232323"], "💀"),
+    spider: makeSVG("Aranya Filosòfica", "Et mira com si fores una conclusió insuficient.", ["#4b3155","#180f1b"], "🕷️"),
+    bandit: makeSVG("Bandoler Emprenedor", "La seua carrera professional és robar-te.", ["#6b4d2e","#24180e"], "🗡️"),
+    ogre: makeSVG("Ogre de les Discussions Curtes", "Argumenta exclusivament amb objectes contundents.", ["#6c5938","#2a2114"], "👺"),
+    necro: makeSVG("Nigromant del Pressupost Fúnebre", "Molt de poder, poc gust i massa confiança.", ["#5b2a3d","#190b11"], "🧛")
+  };
+
+  const nodes = [
+    {id:'n1', row:0, x:18, y:82, type:'combat', icon:'⚔️'},
+    {id:'n2', row:0, x:18, y:52, type:'treasure', icon:'💰'},
+    {id:'n3', row:0, x:18, y:22, type:'rest', icon:'🔥'},
+
+    {id:'n4', row:1, x:35, y:70, type:'combat', icon:'⚔️'},
+    {id:'n5', row:1, x:35, y:40, type:'merchant', icon:'🧙'},
+    {id:'n6', row:1, x:35, y:15, type:'elite', icon:'👹'},
+
+    {id:'n7', row:2, x:55, y:78, type:'rest', icon:'🔥'},
+    {id:'n8', row:2, x:55, y:52, type:'combat', icon:'⚔️'},
+    {id:'n9', row:2, x:55, y:28, type:'treasure', icon:'💰'},
+
+    {id:'n10', row:3, x:74, y:68, type:'elite', icon:'👹'},
+    {id:'n11', row:3, x:74, y:40, type:'combat', icon:'⚔️'},
+    {id:'n12', row:3, x:74, y:16, type:'merchant', icon:'🧙'},
+
+    {id:'n13', row:4, x:90, y:42, type:'boss', icon:'👑'}
+  ];
+
+  const links = [
+    ['n1','n4'],['n1','n5'],
+    ['n2','n4'],['n2','n5'],['n2','n6'],
+    ['n3','n5'],['n3','n6'],
+    ['n4','n7'],['n4','n8'],
+    ['n5','n7'],['n5','n8'],['n5','n9'],
+    ['n6','n8'],['n6','n9'],
+    ['n7','n10'],['n7','n11'],
+    ['n8','n10'],['n8','n11'],['n8','n12'],
+    ['n9','n11'],['n9','n12'],
+    ['n10','n13'],['n11','n13'],['n12','n13']
+  ];
+
+  const els = {
+    floorLabel: document.getElementById('floorLabel'),
+    progressText: document.getElementById('progressText'),
+    progressBar: document.getElementById('progressBar'),
+    heroImg: document.getElementById('heroImg'),
+    sceneImg: document.getElementById('sceneImg'),
+    enemyImg: document.getElementById('enemyImg'),
+    roomTypeBadge: document.getElementById('roomTypeBadge'),
+    sceneTitle: document.getElementById('sceneTitle'),
+    sceneText: document.getElementById('sceneText'),
+    combatLog: document.getElementById('combatLog'),
+    heroHpText: document.getElementById('heroHpText'),
+    heroHpBar: document.getElementById('heroHpBar'),
+    heroAtk: document.getElementById('heroAtk'),
+    heroDef: document.getElementById('heroDef'),
+    heroLvl: document.getElementById('heroLvl'),
+    heroXp: document.getElementById('heroXp'),
+    heroGold: document.getElementById('heroGold'),
+    heroPotions: document.getElementById('heroPotions'),
+    inventoryList: document.getElementById('inventoryList'),
+    enemyName: document.getElementById('enemyName'),
+    enemyHpText: document.getElementById('enemyHpText'),
+    enemyHpBar: document.getElementById('enemyHpBar'),
+    enemyAtk: document.getElementById('enemyAtk'),
+    enemyDef: document.getElementById('enemyDef'),
+    enemyDesc: document.getElementById('enemyDesc'),
+    skillState: document.getElementById('skillState'),
+    routeText: document.getElementById('routeText'),
+    attackBtn: document.getElementById('attackBtn'),
+    defendBtn: document.getElementById('defendBtn'),
+    skillBtn: document.getElementById('skillBtn'),
+    potionBtn: document.getElementById('potionBtn'),
+    restartBtn: document.getElementById('restartBtn'),
+    showMapHelp: document.getElementById('showMapHelp'),
+    modal: document.getElementById('modal'),
+    modalTitle: document.getElementById('modalTitle'),
+    modalText: document.getElementById('modalText'),
+    modalRestart: document.getElementById('modalRestart'),
+    modalClose: document.getElementById('modalClose'),
+    mapBoard: document.getElementById('mapBoard'),
+    mapLines: document.getElementById('mapLines')
+  };
+
+  const enemies = [
+    {id:'goblin', name:'Goblin Escandalosament Motivé', hp:12, atk:4, def:1, gold:[4,7], xp:[4,6], desc:'Petit, sorollós i convençut que el teu casc val diners.'},
+    {id:'skeleton', name:'Esquelet Administratiu', hp:15, atk:5, def:2, gold:[5,8], xp:[5,7], desc:'Camina per pura burocràcia necromàntica.'},
+    {id:'spider', name:'Aranya Filosòfica', hp:13, atk:6, def:1, gold:[4,6], xp:[5,7], desc:'Té massa ulls i cap d’ells transmet empatia.'},
+    {id:'bandit', name:'Bandoler Emprenedor', hp:17, atk:6, def:2, gold:[6,10], xp:[6,8], desc:'Entén la propietat privada, però de manera creativa.'},
+    {id:'ogre', name:'Ogre de les Discussions Curtes', hp:24, atk:8, def:3, gold:[10,15], xp:[10,14], desc:'La seua opinió cap dins d’una maça.'}
+  ];
+  const finalBoss = {id:'necro', name:'Nigromant del Pressupost Fúnebre', hp:38, atk:11, def:4, gold:[22,28], xp:[18,22], desc:'Ha estudiat molt per a acabar vestint-se com una cortina enfadada.'};
+
+  const roomTexts = {
+    combat: [
+      "La sala sembla buida només durant els dos primers segons. Després ja no.",
+      "Has triat combat. Una decisió valenta, discutible, però valenta.",
+      "Sents un soroll a la penombra. És l’equivalent subterrani de males notícies."
+    ],
+    elite: [
+      "La presència d’este enemic és tan intensa que pareix haver reservat la sala.",
+      "Has triat una ruta més dura. Enhorabona per la teua confiança temerària.",
+      "Ací hi ha alguna cosa gran, perillosa i poc inclinada al diàleg."
+    ],
+    treasure: [
+      "Un cofre t’espera. Té l’aire d’algú que sap coses.",
+      "Has trobat tresor. O un contenidor amb excessiva autoestima.",
+      "La sala és tranquil·la i el cofre és evident. Açò no inspira confiança, però sí curiositat."
+    ],
+    rest: [
+      "Per fi un racó on res vol matar-te immediatament.",
+      "Ací el silenci és amable. Ja és molt.",
+      "Una foguera, un banc i cap crit. Luxes de la vida subterrània."
+    ],
+    merchant: [
+      "Un mercader t’observa amb el somriure d’algú que ja ha inflat els preus.",
+      "Has trobat comerç en la mazmorra. El capitalisme és una bèstia adaptable.",
+      "Hi ha venda ambulant fins i tot ací baix. El progrés és terrible i admirable alhora."
+    ],
+    boss: [
+      "La gran porta s’obri. L’aire es torna solemne, com si hagueren contractat un dramaturg.",
+      "Has arribat al final. Tot és gran, fosc i ridículament teatral.",
+      "Ara sí: sala final, enemic final i excuses finals."
+    ]
+  };
+
+  let state;
+
+  function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function log(text){
+    const p = document.createElement('p');
+    p.textContent = text;
+    els.combatLog.prepend(p);
+  }
+
+  function resetState(){
+    state = {
+      hero: {
+        hp:30,maxHp:30,atk:5,def:3,level:1,xp:0,xpToNext:10,gold:0,potions:2,defend:false,skillCd:0,
+        relics:['Espasa honesta','Armadura discutible']
+      },
+      currentNode:null,
+      currentEnemy:null,
+      nodeStatus:{},
+      available:new Set(['n1','n2','n3']),
+      completedRows:-1,
+      gameOver:false,
+      victory:false
+    };
+    nodes.forEach(n => state.nodeStatus[n.id] = 'locked');
+    ['n1','n2','n3'].forEach(id => state.nodeStatus[id] = 'available');
+    els.heroImg.src = art.hero;
+    els.sceneImg.src = art.combat;
+    els.enemyImg.src = art.hero;
+    els.combatLog.innerHTML = '';
+    log("Comença la V2. Ara tries ruta. Açò millora l’estratègia i empitjora la culpa.");
+    renderMap();
+    updateUI();
+  }
+
+  function getNode(id){ return nodes.find(n => n.id === id); }
+
+  function renderMap(){
+    els.mapBoard.querySelectorAll('.node').forEach(n => n.remove());
+    els.mapLines.innerHTML = '';
+
+    const ns = 'http://www.w3.org/2000/svg';
+    links.forEach(([aId,bId]) => {
+      const a = getNode(aId), b = getNode(bId);
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', a.x*10);
+      line.setAttribute('y1', a.y*6);
+      line.setAttribute('x2', b.x*10);
+      line.setAttribute('y2', b.y*6);
+      const active = state.nodeStatus[aId] === 'completed' || state.nodeStatus[bId] === 'available' || state.nodeStatus[bId] === 'current';
+      line.setAttribute('stroke', active ? 'rgba(255,230,170,.42)' : 'rgba(255,255,255,.12)');
+      line.setAttribute('stroke-width', active ? '5' : '3');
+      line.setAttribute('stroke-linecap', 'round');
+      els.mapLines.appendChild(line);
+    });
+
+    nodes.forEach(node => {
+      const div = document.createElement('div');
+      div.className = `node ${node.type} ${state.nodeStatus[node.id]}`;
+      div.style.left = node.x + '%';
+      div.style.top = node.y + '%';
+      div.textContent = node.icon;
+      div.title = `${node.type} — ${node.id}`;
+      if(state.nodeStatus[node.id] === 'available'){
+        div.addEventListener('click', () => selectNode(node.id));
+      }
+      if(node.type === 'boss'){
+        div.classList.add('smalltext');
+        div.innerHTML = '<div>👑<br>Boss</div>';
+      }
+      els.mapBoard.appendChild(div);
+    });
+  }
+
+  function cloneEnemy(base, rowBoost){
+    const e = JSON.parse(JSON.stringify(base));
+    e.maxHp = e.hp + rowBoost * 2;
+    e.hp = e.maxHp;
+    e.atk = e.atk + Math.floor(rowBoost/2);
+    e.def = e.def + Math.floor(rowBoost/3);
+    return e;
+  }
+
+  function selectNode(id){
+    if(state.gameOver || state.nodeStatus[id] !== 'available') return;
+    const node = getNode(id);
+    state.currentNode = id;
+    state.currentEnemy = null;
+
+    Object.keys(state.nodeStatus).forEach(k => {
+      if(state.nodeStatus[k] === 'current') state.nodeStatus[k] = 'completed';
+    });
+    state.nodeStatus[id] = 'current';
+
+    const rowBoost = node.row + 1;
+    els.floorLabel.textContent = `Ruta triada: ${id.toUpperCase()} — fila ${node.row + 1}`;
+    els.routeText.textContent = `Ara estàs en el node ${id.toUpperCase()} (${node.type}). Quan el resolgues, desbloquejaràs el següent tram del mapa.`;
+
+    if(node.type === 'combat'){
+      const pool = enemies.filter(e => e.id !== 'ogre');
+      const base = pick(pool);
+      state.currentEnemy = cloneEnemy(base, rowBoost);
+      els.enemyImg.src = art[base.id];
+      els.sceneImg.src = art.combat;
+      els.sceneTitle.textContent = 'Combat';
+      els.sceneText.textContent = pick(roomTexts.combat);
+      log(`Has triat un node de combat. ${state.currentEnemy.name} sembla entusiasmat per la teua presència.`);
+    } else if(node.type === 'elite'){
+      const base = enemies.find(e => e.id === 'ogre');
+      state.currentEnemy = cloneEnemy(base, rowBoost + 1);
+      els.enemyImg.src = art.ogre;
+      els.sceneImg.src = art.elite;
+      els.sceneTitle.textContent = 'Combat elite';
+      els.sceneText.textContent = pick(roomTexts.elite);
+      log("Has triat un node elite. Açò és com un combat normal, però amb menys marge per al romanticisme.");
+    } else if(node.type === 'treasure'){
+      els.enemyImg.src = art.treasure;
+      els.sceneImg.src = art.treasure;
+      els.sceneTitle.textContent = 'Cofre';
+      els.sceneText.textContent = pick(roomTexts.treasure);
+      resolveTreasure(node);
+    } else if(node.type === 'rest'){
+      els.enemyImg.src = art.rest;
+      els.sceneImg.src = art.rest;
+      els.sceneTitle.textContent = 'Descans';
+      els.sceneText.textContent = pick(roomTexts.rest);
+      resolveRest(node);
+    } else if(node.type === 'merchant'){
+      els.enemyImg.src = art.merchant;
+      els.sceneImg.src = art.merchant;
+      els.sceneTitle.textContent = 'Mercader';
+      els.sceneText.textContent = pick(roomTexts.merchant);
+      resolveMerchant(node);
+    } else if(node.type === 'boss'){
+      state.currentEnemy = cloneEnemy(finalBoss, 4);
+      els.enemyImg.src = art.necro;
+      els.sceneImg.src = art.boss;
+      els.sceneTitle.textContent = 'Jefe final';
+      els.sceneText.textContent = pick(roomTexts.boss);
+      log("Has arribat al jefe final. Ja no queda mapa, només conseqüències.");
+    }
+
+    renderMap();
+    updateUI();
+  }
+
+  function unlockNext(fromId){
+    const fromNode = getNode(fromId);
+    state.nodeStatus[fromId] = 'completed';
+    const outgoing = links.filter(([a]) => a === fromId).map(([,b]) => b);
+    outgoing.forEach(id => {
+      if(state.nodeStatus[id] === 'locked') state.nodeStatus[id] = 'available';
+    });
+
+    if(!outgoing.length && fromNode.type === 'boss'){
+      return;
+    }
+
+    const anyCurrent = Object.values(state.nodeStatus).includes('current');
+    if(!anyCurrent) {
+      // nothing
+    }
+    renderMap();
+    updateUI();
+  }
+
+  function resolveTreasure(node){
+    const hero = state.hero;
+    const r = Math.random();
+    if(r < 0.42){
+      const gold = randInt(7, 14);
+      hero.gold += gold;
+      log(`Obris el cofre i trobes ${gold} monedes. Algú tenia mal gust i bons estalvis.`);
+    } else if(r < 0.74){
+      hero.potions += 1;
+      log("Dins del cofre hi ha una poció. Fa bona cara, que en un líquid és un criteri acceptable.");
+    } else if(r < 0.88){
+      hero.atk += 1;
+      hero.relics.push('Amulet sospitosament útil');
+      log("Trobes un amulet útil. Brilla poc, però inspira confiança.");
+    } else {
+      hero.def += 1;
+      hero.relics.push('Braçalet de dignitat defensiva');
+      log("Trobes una peça defensiva. Ara eres lleument menys perforable.");
+    }
+    unlockNext(node.id);
+  }
+
+  function resolveRest(node){
+    const hero = state.hero;
+    const heal = randInt(8, 15);
+    hero.hp = Math.min(hero.maxHp, hero.hp + heal);
+    if(Math.random() < 0.35){
+      hero.potions += 1;
+      log(`Descanses, recuperes ${heal} de vida i algú ha deixat una poció. Gent rara, però considerada.`);
+    } else {
+      log(`Descanses i recuperes ${heal} de vida. Luxes modestos del subsol.`);
+    }
+    unlockNext(node.id);
+  }
+
+  function resolveMerchant(node){
+    const hero = state.hero;
+    if(hero.gold >= 10){
+      hero.gold -= 10;
+      const opt = Math.random();
+      if(opt < 0.34){
+        hero.potions += 2;
+        log("El mercader et ven dues pocions per 10 monedes. Car? Sí. Útil? També.");
+      } else if(opt < 0.67){
+        hero.atk += 1;
+        hero.relics.push('Fulla modestament millorada');
+        log("El mercader et ven una millora d’arma. Ara talles una mica més i dubtes una mica menys.");
+      } else {
+        hero.def += 1;
+        hero.relics.push('Protector de colps evitables');
+        log("El mercader et ven armadura. No és bonica, però sí persuasiva contra la violència.");
+      }
+    } else {
+      log("El mercader et mira, tu mires la teua bossa, i tots dos enteneu que no hi ha negoci.");
+    }
+    unlockNext(node.id);
+  }
+
+  function canAct(){
+    return !state.gameOver && state.currentEnemy && state.currentEnemy.hp > 0;
+  }
+
+  function enemyTurn(){
+    const hero = state.hero;
+    const enemy = state.currentEnemy;
+    if(!enemy || enemy.hp <= 0 || hero.hp <= 0) return;
+    let dmg = Math.max(1, enemy.atk - hero.def + randInt(-1,2));
+    if(hero.defend){
+      dmg = Math.max(0, dmg - 4);
+      hero.defend = false;
+      log("La defensa absorbeix part del colp. El metall, per una vegada, es guanya el sou.");
+    }
+    hero.hp -= dmg;
+    log(`${enemy.name} et pega i et fa ${dmg} de dany.`);
+    if(hero.hp <= 0){
+      hero.hp = 0;
+      loseGame(`Has caigut davant de ${enemy.name}. Era lleig, però eficaç.`);
+    }
+  }
+
+  function maybeLevelUp(){
+    const hero = state.hero;
+    while(hero.xp >= hero.xpToNext){
+      hero.xp -= hero.xpToNext;
+      hero.level++;
+      hero.xpToNext += 6;
+      hero.maxHp += 6;
+      hero.hp = hero.maxHp;
+      hero.atk += 1;
+      hero.def += 1;
+      hero.potions += 1;
+      log(`Puges a nivell ${hero.level}. Et sents més fort, més savi i bastant millor hidratat.`);
+    }
+  }
+
+  function winNode(){
+    const enemy = state.currentEnemy;
+    const gold = randInt(enemy.gold[0], enemy.gold[1]);
+    const xp = randInt(enemy.xp[0], enemy.xp[1]);
+    state.hero.gold += gold;
+    state.hero.xp += xp;
+    log(`Derrotes ${enemy.name}. Guanyes ${xp} XP i ${gold} monedes. La glòria ve amb canvi solt.`);
+    maybeLevelUp();
+
+    const currentId = state.currentNode;
+    state.currentEnemy = null;
+
+    if(getNode(currentId).type === 'boss'){
+      winGame();
+      state.nodeStatus[currentId] = 'completed';
+      renderMap();
+      updateUI();
+      return;
+    }
+
+    unlockNext(currentId);
+  }
+
+  function attack(){
+    if(!canAct()) return;
+    const enemy = state.currentEnemy;
+    let dmg = Math.max(1, state.hero.atk - enemy.def + randInt(0,3));
+    const crit = Math.random() < 0.16;
+    if(crit) dmg += 3;
+    enemy.hp -= dmg;
+    log(`Ataques ${enemy.name} i fas ${dmg} de dany${crit ? " crític" : ""}.`);
+    if(enemy.hp <= 0){
+      enemy.hp = 0;
+      winNode();
+    } else {
+      enemyTurn();
+    }
+    updateUI();
+  }
+
+  function defend(){
+    if(!canAct()) return;
+    state.hero.defend = true;
+    log("Adoptes una postura defensiva. No és gloriosa, però tampoc és una mala idea.");
+    enemyTurn();
+    updateUI();
+  }
+
+  function skill(){
+    if(!canAct() || state.hero.skillCd > 0) return;
+    const enemy = state.currentEnemy;
+    let dmg = Math.max(3, state.hero.atk + 4 - enemy.def + randInt(1,4));
+    enemy.hp -= dmg;
+    state.hero.skillCd = 2;
+    log(`Uses l’habilitat i claves una estocada monumental. ${enemy.name} rep ${dmg} de dany.`);
+    if(enemy.hp <= 0){
+      enemy.hp = 0;
+      winNode();
+    } else {
+      enemyTurn();
+    }
+    updateUI();
+  }
+
+  function potion(){
+    const hero = state.hero;
+    if(state.gameOver) return;
+    if(hero.potions <= 0){
+      log("Busques una poció. Trobes esperança, però no medicina.");
+      updateUI();
+      return;
+    }
+    if(hero.hp === hero.maxHp){
+      log("Estàs a vida màxima. Beure una poció ara seria pur teatre.");
+      updateUI();
+      return;
+    }
+    hero.potions--;
+    const heal = randInt(10,16);
+    hero.hp = Math.min(hero.maxHp, hero.hp + heal);
+    log(`Beus una poció i recuperes ${heal} de vida. Té gust a herbes, ferro i decisions pressades.`);
+    if(canAct()) enemyTurn();
+    updateUI();
+  }
+
+  function loseGame(text){
+    state.gameOver = true;
+    updateUI();
+    showModal("💀 Derrota heroicament millorable", text);
+  }
+
+  function winGame(){
+    state.gameOver = true;
+    updateUI();
+    showModal("🏆 Victòria", "Has derrotat el jefe final després d’obrir-te pas per la ruta que tu mateix has triat. Heroisme, planificació i una miqueta de sort bruta.");
+  }
+
+  function updateInventory(){
+    els.inventoryList.innerHTML = '';
+    const items = [...state.hero.relics.slice(-5), state.hero.potions > 0 ? `${state.hero.potions} poció(ns)` : 'Sense pocions'];
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'chip';
+      div.textContent = item;
+      els.inventoryList.appendChild(div);
+    });
+  }
+
+  function updateEnemyBlock(){
+    const enemy = state.currentEnemy;
+    const node = state.currentNode ? getNode(state.currentNode) : null;
+    if(enemy){
+      els.enemyName.textContent = enemy.name;
+      els.enemyHpText.textContent = `${enemy.hp} / ${enemy.maxHp}`;
+      els.enemyHpBar.style.width = Math.max(0, enemy.hp / enemy.maxHp * 100) + '%';
+      els.enemyAtk.textContent = enemy.atk;
+      els.enemyDef.textContent = enemy.def;
+      els.enemyDesc.textContent = enemy.desc;
+    } else {
+      els.enemyName.textContent = node ? `Node ${node.id.toUpperCase()} resolt` : 'Cap enemic actiu';
+      els.enemyHpText.textContent = '—';
+      els.enemyHpBar.style.width = '0%';
+      els.enemyAtk.textContent = '—';
+      els.enemyDef.textContent = '—';
+      els.enemyDesc.textContent = node ? `Tipus: ${node.type}. Tria el següent node disponible del mapa.` : 'Tria un node del mapa per començar.';
+    }
+  }
+
+  function updateUI(){
+    const hero = state.hero;
+    const completed = Object.values(state.nodeStatus).filter(v => v === 'completed').length;
+    const progress = Math.round((completed / nodes.length) * 100);
+
+    els.progressText.textContent = progress + '%';
+    els.progressBar.style.width = progress + '%';
+    els.heroHpText.textContent = `${hero.hp} / ${hero.maxHp}`;
+    els.heroHpBar.style.width = Math.max(0, hero.hp / hero.maxHp * 100) + '%';
+    els.heroAtk.textContent = hero.atk;
+    els.heroDef.textContent = hero.def;
+    els.heroLvl.textContent = hero.level;
+    els.heroXp.textContent = `${hero.xp} / ${hero.xpToNext}`;
+    els.heroGold.textContent = hero.gold;
+    els.heroPotions.textContent = hero.potions;
+    els.skillState.textContent = hero.skillCd > 0 ? `En recuperació: ${hero.skillCd} torn(s)` : 'Disponible';
+
+    const node = state.currentNode ? getNode(state.currentNode) : null;
+    const typeNames = {combat:'Combat', elite:'Elite', treasure:'Cofre', rest:'Descans', merchant:'Mercader', boss:'Jefe final'};
+    els.roomTypeBadge.textContent = node ? typeNames[node.type] : 'Mapa';
+    if(!node){
+      els.floorLabel.textContent = 'Tria un node inicial';
+    }
+
+    updateInventory();
+    updateEnemyBlock();
+
+    const activeCombat = canAct();
+    els.attackBtn.disabled = !activeCombat;
+    els.defendBtn.disabled = !activeCombat;
+    els.skillBtn.disabled = !activeCombat || hero.skillCd > 0;
+    els.potionBtn.disabled = state.gameOver || hero.potions <= 0;
+
+    renderMap();
+  }
+
+  function showModal(title, text){
+    els.modalTitle.textContent = title;
+    els.modalText.textContent = text;
+    els.modal.classList.add('show');
+  }
+  function closeModal(){ els.modal.classList.remove('show'); }
+
+  els.attackBtn.addEventListener('click', attack);
+  els.defendBtn.addEventListener('click', defend);
+  els.skillBtn.addEventListener('click', skill);
+  els.potionBtn.addEventListener('click', potion);
+  els.restartBtn.addEventListener('click', () => { closeModal(); resetState(); });
+  els.modalRestart.addEventListener('click', () => { closeModal(); resetState(); });
+  els.modalClose.addEventListener('click', closeModal);
+  els.showMapHelp.addEventListener('click', () => {
+    showModal(
+      "🗺️ Com funciona el mapa",
+      "Tria només els nodes il·luminats. Quan resols un node, es desbloquegen els següents connectats. Combat i elite obrin combat real; cofre, descans i mercader es resolen al moment. El boss és l’últim node."
+    );
+  });
+
+  resetState();
+})();
+</script>
+</body>
+</html>
