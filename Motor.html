@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Masmorra Medieval V2</title>
+  <style>
+    body{
+      margin:0;
+      font-family:Georgia, serif;
+      background:#1f1a17;
+      color:#f3e7c9;
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:20px;
+    }
+
+    h1{
+      text-align:center;
+      margin-bottom:20px;
+    }
+
+    .arena{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:20px;
+      align-items:start;
+    }
+
+    .panel{
+      background:#2b241f;
+      border:2px solid #6d5a47;
+      border-radius:14px;
+      padding:16px;
+      box-shadow:0 0 10px rgba(0,0,0,.35);
+    }
+
+    .name{
+      font-size:1.5rem;
+      margin-bottom:10px;
+    }
+
+    .sub{
+      opacity:.8;
+      font-size:.95rem;
+      margin-bottom:14px;
+    }
+
+    .portrait{
+      width:100%;
+      height:260px;
+      border:1px solid #7c6853;
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#3a3029;
+      margin-bottom:14px;
+      font-size:1.1rem;
+      color:#dbc9a6;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-bottom:14px;
+    }
+
+    .stat{
+      background:#3a3029;
+      border-radius:8px;
+      padding:10px;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+      margin-top:20px;
+    }
+
+    button{
+      padding:14px;
+      font-size:1rem;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      background:#8d6b3f;
+      color:white;
+      font-weight:bold;
+    }
+
+    button:hover{
+      filter:brightness(1.08);
+    }
+
+    button:disabled{
+      background:#5d544b;
+      color:#cfc3b2;
+      cursor:not-allowed;
+    }
+
+    .log{
+      margin-top:20px;
+      background:#120f0d;
+      border:2px solid #6d5a47;
+      border-radius:12px;
+      padding:14px;
+      min-height:140px;
+      white-space:pre-line;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+
+    .tag{
+      background:#3a3029;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid #6d5a47;
+    }
+
+    @media (max-width: 800px){
+      .arena{
+        grid-template-columns:1fr;
+      }
+      .actions{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>⚔️ Masmorra Medieval — V2 amb IA</h1>
+
+    <div class="topbar">
+      <div class="tag" id="turnInfo">Torn: 1</div>
+      <div class="tag" id="stateInfo">Combat actiu</div>
+    </div>
+
+    <div class="arena">
+      <div class="panel">
+        <div class="name" id="heroName">Cavaller</div>
+        <div class="sub" id="heroSub">Heroi jugable</div>
+        <div class="portrait">[ PNG Heroi ací ]</div>
+        <div class="stats" id="heroStats"></div>
+      </div>
+
+      <div class="panel">
+        <div class="name" id="enemyName">Guerrer Esquelet</div>
+        <div class="sub" id="enemySub">No Mort · IA astuta · Nivell 3</div>
+        <div class="portrait">[ PNG Enemic ací ]</div>
+        <div class="stats" id="enemyStats"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btnAttack" onclick="heroAttack()">⚔️ Atac</button>
+      <button id="btnDefend" onclick="heroDefend()">🛡️ Defensa</button>
+      <button id="btnHeal" onclick="heroHeal()">❤️ Recuperar vida</button>
+      <button id="btnSpecial" onclick="heroSpecial()">✨ Habilitat especial</button>
+    </div>
+
+    <div class="log" id="log">Comença el combat.</div>
+  </div>
+
+  <script>
+    const hero = {
+      nom: "Cavaller",
+      classe: "Cavaller",
+      vida: 22,
+      vidaMax: 22,
+      atac: 6,
+      defensa: 6,
+      velocitat: 2,
+      pocions: 2,
+      habilitat: "Cop Heroic",
+      especialUsada: false,
+      defensaTemporal: 0,
+      reduccioDany: 0
+    };
+
+    const enemy = {
+      nom: "Guerrer Esquelet",
+      tipus: "astuta",
+      categoria: "No Mort",
+      nivell: 3,
+      vida: 8,
+      vidaMax: 8,
+      atac: 5,
+      defensa: 4,
+      velocitat: 3,
+      habilitat: "Emboscada Tètrica",
+      especialUsada: false,
+      estaDefensant: false
+    };
+
+    let torn = 1;
+    let combatAcabat = false;
+
+    function d6() {
+      return Math.floor(Math.random() * 6) + 1;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function updateUI() {
+      document.getElementById("turnInfo").textContent = "Torn: " + torn;
+      document.getElementById("heroName").textContent = hero.nom;
+      document.getElementById("heroSub").textContent = hero.classe + " · Especial: " + hero.habilitat;
+
+      document.getElementById("enemyName").textContent = enemy.nom;
+      document.getElementById("enemySub").textContent =
+        enemy.categoria + " · IA " + enemy.tipus + " · Nivell " + enemy.nivell;
+
+      document.getElementById("heroStats").innerHTML = `
+        <div class="stat">❤️ Vida: ${hero.vida}/${hero.vidaMax}</div>
+        <div class="stat">⚔️ Atac: ${hero.atac}</div>
+        <div class="stat">🛡️ Defensa: ${hero.defensa} ${hero.defensaTemporal ? "(+" + hero.defensaTemporal + ")" : ""}</div>
+        <div class="stat">⚡ Velocitat: ${hero.velocitat}</div>
+        <div class="stat">🧪 Pocions: ${hero.pocions}</div>
+        <div class="stat">✨ Especial: ${hero.especialUsada ? "Gastada" : "Disponible"}</div>
+      `;
+
+      document.getElementById("enemyStats").innerHTML = `
+        <div class="stat">❤️ Vida: ${enemy.vida}/${enemy.vidaMax}</div>
+        <div class="stat">⚔️ Atac: ${enemy.atac}</div>
+        <div class="stat">🛡️ Defensa: ${enemy.defensa} ${enemy.estaDefensant ? "(defensant)" : ""}</div>
+        <div class="stat">⚡ Velocitat: ${enemy.velocitat}</div>
+        <div class="stat">☠️ Habilitat: ${enemy.habilitat}</div>
+        <div class="stat">🎚️ Nivell: ${enemy.nivell}</div>
+      `;
+
+      document.getElementById("btnHeal").disabled = combatAcabat || hero.pocions <= 0 || hero.vida >= hero.vidaMax;
+      document.getElementById("btnSpecial").disabled = combatAcabat || hero.especialUsada;
+      document.getElementById("btnAttack").disabled = combatAcabat;
+      document.getElementById("btnDefend").disabled = combatAcabat;
+    }
+
+    function setLog(text) {
+      document.getElementById("log").textContent = text;
+    }
+
+    function endCombat(message) {
+      combatAcabat = true;
+      document.getElementById("stateInfo").textContent = "Combat acabat";
+      setLog(message);
+      updateUI();
+    }
+
+    function effectiveHeroDefense() {
+      return hero.defensa + hero.defensaTemporal;
+    }
+
+    function effectiveEnemyDefense() {
+      return enemy.defensa + (enemy.estaDefensant ? 2 : 0);
+    }
+
+    function heroHitsEnemy(extraAttack = 0, ignoreDefense = false, customText = "⚔️ L’heroi ataca.") {
+      const tirada = d6();
+      const totalAtac = tirada + hero.atac + extraAttack;
+      const defensaObjectiu = ignoreDefense ? 0 : effectiveEnemyDefense();
+
+      let text = `${customText}\nTirada heroi: ${tirada} + ${hero.atac}${extraAttack ? " + " + extraAttack : ""} = ${totalAtac}`;
+
+      if (totalAtac >= defensaObjectiu) {
+        let dany = hero.atac + extraAttack;
+        enemy.vida = clamp(enemy.vida - dany, 0, enemy.vidaMax);
+        text += `\n✅ Impacta i fa ${dany} de dany.`;
+      } else {
+        text += `\n❌ Falla l’atac.`;
+      }
+      return text;
+    }
+
+    function enemyHitsHero(extraAttack = 0, ignoreDefense = false, customText = "💀 L’enemic ataca.") {
+      const tirada = d6();
+      const totalAtac = tirada + enemy.atac + extraAttack;
+      const defensaObjectiu = ignoreDefense ? 0 : effectiveHeroDefense();
+
+      let text = `${customText}\nTirada enemic: ${tirada} + ${enemy.atac}${extraAttack ? " + " + extraAttack : ""} = ${totalAtac}`;
+
+      if (totalAtac >= defensaObjectiu) {
+        let dany = enemy.atac + extraAttack - hero.reduccioDany;
+        dany = Math.max(1, dany);
+        hero.vida = clamp(hero.vida - dany, 0, hero.vidaMax);
+        text += `\n✅ Impacta i fa ${dany} de dany.`;
+      } else {
+        text += `\n❌ L’enemic falla.`;
+      }
+      return text;
+    }
+
+    function resetHeroTemporaryDefense() {
+      hero.defensaTemporal = 0;
+      hero.reduccioDany = 0;
+    }
+
+    function resetEnemyTemporaryDefense() {
+      enemy.estaDefensant = false;
+    }
+
+    function heroAttack() {
+      if (combatAcabat) return;
+
+      resetEnemyTemporaryDefense();
+
+      let text = heroHitsEnemy(0, false, "⚔️ L’heroi llança un atac normal.");
+
+      if (enemy.vida <= 0) {
+        endCombat(text + "\n\n🏆 Enemic derrotat.");
+        return;
+      }
+
+      text += "\n\n" + enemyTurn();
+      finishRound(text);
+    }
+
+    function heroDefend() {
+      if (combatAcabat) return;
+
+      resetEnemyTemporaryDefense();
+
+      hero.defensaTemporal = 2;
+      hero.reduccioDany = 1;
+
+      let text = "🛡️ L’heroi adopta posició defensiva.\nGuanya +2 defensa i -1 dany rebut este torn.";
+
+      text += "\n\n" + enemyTurn();
+      finishRound(text);
+    }
+
+    function heroHeal() {
+      if (combatAcabat || hero.pocions <= 0 || hero.vida >= hero.vidaMax) return;
+
+      resetEnemyTemporaryDefense();
+
+      hero.pocions -= 1;
+      hero.vida = clamp(hero.vida + 5, 0, hero.vidaMax);
+
+      let text = "❤️ L’heroi usa una poció.\nRecupera 5 punts de vida.";
+
+      text += "\n\n" + enemyTurn();
+      finishRound(text);
+    }
+
+    function heroSpecial() {
+      if (combatAcabat || hero.especialUsada) return;
+
+      resetEnemyTemporaryDefense();
+
+      hero.especialUsada = true;
+
+      let text = "";
+      if (hero.classe === "Cavaller") {
+        text = heroHitsEnemy(3, false, "✨ Cop Heroic!\nL’heroi descarrega un colp devastador.");
+      } else {
+        text = heroHitsEnemy(2, false, "✨ Habilitat especial!\nL’heroi usa la seua tècnica única.");
+      }
+
+      if (enemy.vida <= 0) {
+        endCombat(text + "\n\n🏆 Enemic derrotat.");
+        return;
+      }
+
+      text += "\n\n" + enemyTurn();
+      finishRound(text);
+    }
+
+    function enemyTurn() {
+      if (combatAcabat) return "";
+      if (enemy.vida <= 0) return "🏆 L’enemic ja està derrotat.";
+
+      let text = "— Torn de l’enemic —\n";
+
+      switch (enemy.tipus) {
+        case "agressiva":
+          text += enemyHitsHero(0, false, "🐀 IA agressiva: l’enemic ataca sense dubtar.");
+          break;
+
+        case "defensiva":
+          if (enemy.vida <= Math.ceil(enemy.vidaMax / 2) && !enemy.estaDefensant) {
+            enemy.estaDefensant = true;
+            text += "🛡️ IA defensiva: l’enemic es protegeix i guanya +2 defensa fins al següent torn del jugador.";
+          } else {
+            text += enemyHitsHero(0, false, "🪨 IA defensiva: l’enemic decideix atacar.");
+          }
+          break;
+
+        case "astuta":
+          if (!enemy.especialUsada && torn === 1) {
+            enemy.especialUsada = true;
+            text += enemyHitsHero(2, false, "☠️ Emboscada Tètrica!\nIA astuta: l’enemic obri el combat amb un atac reforçat.");
+          } else {
+            text += enemyHitsHero(0, false, "🗡️ IA astuta: l’enemic busca una obertura i ataca.");
+          }
+          break;
+
+        case "magica":
+          if (!enemy.especialUsada) {
+            enemy.especialUsada = true;
+            text += enemyHitsHero(1, true, "🔮 IA màgica: l’enemic usa un atac que ignora la defensa.");
+          } else {
+            text += enemyHitsHero(0, false, "🔮 IA màgica: l’enemic continua amb atac normal.");
+          }
+          break;
+
+        case "boss":
+          if (torn % 3 === 0) {
+            text += enemyHitsHero(3, false, "👑 IA boss: patró especial de colp poderós.");
+          } else {
+            text += enemyHitsHero(0, false, "👑 IA boss: atac de patró normal.");
+          }
+          break;
+
+        default:
+          text += enemyHitsHero(0, false, "💀 L’enemic ataca.");
+      }
+
+      if (hero.vida <= 0) {
+        return text + "\n\n☠️ L’heroi ha caigut.";
+      }
+
+      return text;
+    }
+
+    function finishRound(text) {
+      if (hero.vida <= 0) {
+        endCombat(text + "\n\n☠️ Derrota.");
+        return;
+      }
+
+      resetHeroTemporaryDefense();
+      torn += 1;
+      setLog(text);
+      updateUI();
+    }
+
+    updateUI();
+  </script>
+</body>
+</html>
