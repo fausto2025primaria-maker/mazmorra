@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<title>Cànon + Joc Masmorra</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+margin:0;
+font-family:Georgia;
+background:url('img/fons_pedra.jpg');
+color:#f5e6c8;
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+padding:20px;
+}
+
+h1,h2{ text-align:center; }
+
+.screen{ display:none; }
+.active{ display:block; }
+
+.panel{
+background:rgba(40,30,20,0.9);
+border:2px solid #8b6f47;
+padding:15px;
+border-radius:10px;
+width:45%;
+}
+
+.arena{
+display:flex;
+justify-content:space-between;
+gap:20px;
+flex-wrap:wrap;
+}
+
+.portrait{
+height:200px;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.portrait img{
+max-height:180px;
+}
+
+.actions{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:15px;
+margin-top:20px;
+}
+
+button{
+background:none;
+border:none;
+}
+
+button img{
+width:80px;
+}
+
+.log{
+margin-top:20px;
+background:#111;
+padding:10px;
+border:2px solid #555;
+min-height:120px;
+}
+
+.doc{
+background:rgba(0,0,0,0.7);
+padding:20px;
+margin-top:30px;
+border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>⚔️ MASMORRA MEDIEVAL — CÀNON</h1>
+
+<div class="doc">
+<h2>Motor del joc</h2>
+<p>Combat per torns amb 1D6. Accions: atacar, defensar, curar, habilitat.</p>
+
+<h2>Herois</h2>
+<p>Cavaller, Arquer, Mag, Clergue.</p>
+
+<h2>IA enemics</h2>
+<p>Agressiva, defensiva, astuta, màgica, boss.</p>
+
+<h2>Regles</h2>
+<p>1D6 + atac ≥ defensa → impacte.</p>
+</div>
+
+<!-- INICI -->
+<div id="start" class="screen active">
+<h2>Tria heroi</h2>
+
+<button onclick="selectHero('cavaller')">Cavaller</button>
+<button onclick="selectHero('arquer')">Arquer</button>
+<button onclick="selectHero('mag')">Mag</button>
+<button onclick="selectHero('clergue')">Clergue</button>
+</div>
+
+<!-- COMBAT -->
+<div id="combat" class="screen">
+
+<h2 id="title"></h2>
+
+<div class="arena">
+
+<div class="panel">
+<h3>Heroi</h3>
+<div class="portrait">
+<img id="heroImg">
+</div>
+<div id="heroStats"></div>
+</div>
+
+<div class="panel">
+<h3 id="enemyName"></h3>
+<div class="portrait">
+<img id="enemyImg">
+</div>
+<div id="enemyStats"></div>
+</div>
+
+</div>
+
+<div class="actions">
+<button onclick="heroAttack()"><img src="img/btn_atac.png"></button>
+<button onclick="heroDefend()"><img src="img/btn_defensa.png"></button>
+<button onclick="heroHeal()"><img src="img/btn_curar.png"></button>
+<button onclick="heroSpecial()"><img src="img/btn_especial.png"></button>
+</div>
+
+<div class="log" id="log"></div>
+
+</div>
+
+</div>
+
+<script>
+
+// HEROIS
+function selectHero(type){
+
+if(type==="cavaller"){
+hero={nom:"Cavaller",vida:22,max:22,atac:6,def:6,vel:2,pocions:2,especial:false,img:"img/heroi_cavaller.png"};
+}
+
+if(type==="arquer"){
+hero={nom:"Arquer",vida:16,max:16,atac:6,def:3,vel:6,pocions:2,especial:false,img:"img/heroi_arquer.png"};
+}
+
+if(type==="mag"){
+hero={nom:"Mag",vida:14,max:14,atac:7,def:2,vel:4,pocions:3,especial:false,img:"img/heroi_mag.png"};
+}
+
+if(type==="clergue"){
+hero={nom:"Clergue",vida:18,max:18,atac:4,def:4,vel:3,pocions:3,especial:false,img:"img/heroi_clergue.png"};
+}
+
+spawnEnemy();
+
+document.getElementById("start").classList.remove("active");
+document.getElementById("combat").classList.add("active");
+
+updateUI();
+}
+
+// ENEMICS
+function spawnEnemy(){
+
+let enemies=[
+{nom:"Rata",vida:6,atac:3,def:1,vel:5,tipo:"agresiva",img:"img/enemic_rata.png"},
+{nom:"Guerrer Esquelet",vida:8,atac:5,def:4,vel:3,tipo:"astuta",img:"img/enemic_guerrer_esquelet.png"},
+{nom:"Nigromant",vida:10,atac:6,def:3,vel:4,tipo:"magica",img:"img/enemic_nigromant.png"},
+{nom:"Rei Esquelet",vida:20,atac:7,def:5,vel:3,tipo:"boss",img:"img/enemic_rei_esquelet.png"}
+];
+
+enemy=enemies[Math.floor(Math.random()*enemies.length)];
+enemy.max=enemy.vida;
+enemy.usada=false;
+}
+
+// UI
+function updateUI(){
+
+document.getElementById("title").innerText=hero.nom+" vs "+enemy.nom;
+document.getElementById("enemyName").innerText=enemy.nom;
+
+document.getElementById("heroImg").src=hero.img;
+document.getElementById("enemyImg").src=enemy.img;
+
+document.getElementById("heroStats").innerHTML=
+"❤️ "+hero.vida+"/"+hero.max+"<br>"+
+"⚔️ "+hero.atac+"<br>"+
+"🛡️ "+hero.def+"<br>"+
+"⚡ "+hero.vel+"<br>"+
+"🧪 "+hero.pocions;
+
+document.getElementById("enemyStats").innerHTML=
+"❤️ "+enemy.vida+"/"+enemy.max+"<br>"+
+"⚔️ "+enemy.atac+"<br>"+
+"🛡️ "+enemy.def+"<br>"+
+"⚡ "+enemy.vel;
+}
+
+// ACCIONS
+
+function d6(){ return Math.floor(Math.random()*6)+1; }
+
+function heroAttack(){
+if(d6()+hero.atac>=enemy.def){
+enemy.vida-=hero.atac;
+log("💥 Impacte");
+}else log("❌ Falles");
+
+enemyTurn();
+updateUI();
+}
+
+function heroDefend(){
+hero.def+=2;
+enemyTurn();
+hero.def-=2;
+}
+
+function heroHeal(){
+if(hero.pocions>0){
+hero.pocions--;
+hero.vida=Math.min(hero.max,hero.vida+5);
+enemyTurn();
+}
+}
+
+function heroSpecial(){
+if(hero.especial) return;
+hero.especial=true;
+enemy.vida-=hero.atac+3;
+enemyTurn();
+}
+
+// IA
+
+function enemyTurn(){
+
+if(enemy.vida<=0){ log("🏆 Guanyes"); return;}
+
+if(d6()+enemy.atac>=hero.def){
+hero.vida-=enemy.atac;
+log("💀 L’enemic colpeja");
+}else log("😮 Falla");
+
+}
+
+// LOG
+function log(t){
+document.getElementById("log").innerText=t;
+}
+
+</script>
+
+</body>
+</html>
