@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mazmorra V4 Canònica</title>
+<style>
+:root{
+  --bg:#090c11; --panel:#141922; --panel2:#0e131b; --line:#364154;
+  --text:#eef2f8; --muted:#9ba9be; --gold:#d7b26a; --danger:#ff7676;
+  --heal:#75e09b; --shield:#78bfff; --shadow:0 14px 34px rgba(0,0,0,.38);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.05), transparent 24%),
+    linear-gradient(180deg, #0a0d12 0%, #080b0f 100%);
+  color:var(--text);
+  font-family: Inter, Arial, sans-serif;
+}
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-rows:1fr auto .92fr;
+  grid-template-columns:minmax(0,1fr) 372px;
+  gap:10px;
+  padding:10px;
+}
+.panel{
+  position:relative;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.enemy{grid-column:1; grid-row:1 / span 2;}
+.heroWrap{grid-column:2; grid-row:1 / span 2; display:grid; grid-template-rows:1fr auto; gap:10px;}
+.hero{position:relative}
+.image{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:136px; user-select:none; transition:transform .22s ease, filter .18s ease;
+}
+.enemy .image{
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,110,110,.18), transparent 33%),
+    linear-gradient(180deg, #261616 0%, #110b0b 100%);
+}
+.hero .image{
+  background:
+    radial-gradient(circle at 50% 18%, rgba(115,180,255,.18), transparent 33%),
+    linear-gradient(180deg, #162131 0%, #0d141c 100%);
+}
+.vignette{position:absolute; inset:0; background:radial-gradient(circle at center, transparent 40%, rgba(0,0,0,.28) 100%); pointer-events:none;}
+.scan{position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.05), transparent 16%, transparent 84%, rgba(255,255,255,.03)); pointer-events:none;}
+.overlay{
+  position:absolute; background:rgba(8,10,14,.58); border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 6px 16px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.05);
+  border-radius:12px; padding:7px 10px; backdrop-filter: blur(5px);
+  width:max-content; max-width:min(76%, 450px);
+}
+.topOverlay{top:12px; left:12px}
+.bottomOverlay{bottom:12px; left:12px}
+.overlay strong{font-size:16px; letter-spacing:.2px}
+.small{font-size:12px; color:var(--muted)}
+.hpWrap{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-top:5px}
+.hpBar{min-width:120px; height:7px; background:#11161d; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,.07); position:relative;}
+.hpBar .delayed{position:absolute; inset:0 auto 0 0; width:100%; background:rgba(255,255,255,.16); transition:width .6s ease;}
+.hpBar .main{
+  position:relative; z-index:2; display:block; height:100%;
+  background:linear-gradient(90deg,#a52d2d,#ff7e7e); box-shadow:0 0 12px rgba(255,110,110,.28);
+  transition:width .25s ease;
+}
+.hero .hpBar .main{background:linear-gradient(90deg,#2f8450,#78e3a0); box-shadow:0 0 12px rgba(117,224,155,.28);}
+.hero .hpBar .delayed{background:rgba(117,224,155,.2);}
+.overlayRow{display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top:5px;}
+.tag{display:inline-flex; align-items:center; gap:5px; padding:3px 7px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); font-size:11px; color:#d9e3f0;}
+.red{color:var(--danger); font-weight:700}
+.green{color:var(--heal); font-weight:700}
+.blue{color:var(--shield); font-weight:700}
+.hudTrail{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;}
+.miniPill{padding:3px 6px; border-radius:999px; font-size:10px; letter-spacing:.25px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06);}
+.heroHealth{
+  position:absolute; left:0; top:16px; bottom:16px; width:18px; background:linear-gradient(180deg,#131821,#0f131a);
+  border-right:1px solid rgba(255,255,255,.08); z-index:3;
+}
+.heroHealth .track{
+  position:absolute; top:12px; bottom:12px; left:3px; right:3px; border-radius:12px; overflow:hidden;
+  background:#11161d; border:1px solid rgba(255,255,255,.08);
+}
+.heroHealth .delay{position:absolute; left:0; right:0; bottom:0; height:100%; background:rgba(117,224,155,.18); transition:height .6s ease;}
+.heroHealth .fill{
+  position:absolute; left:0; right:0; bottom:0; height:100%; background:linear-gradient(180deg,#7ce4a3,#267443);
+  box-shadow:0 0 14px rgba(117,224,155,.28); transition:height .25s ease;
+}
+.heroHealth .icon{position:absolute; top:-2px; left:50%; transform:translateX(-50%); font-size:12px;}
+.heroHealth .value{position:absolute; bottom:-2px; left:50%; transform:translateX(-50%) rotate(-90deg); font-size:10px; font-weight:800; color:#dce7f2; white-space:nowrap;}
+.hero .card{padding-left:12px}
+.card{height:100%; display:grid; grid-template-rows:auto 1fr;}
+.head{display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.08);}
+.head .title{font-size:13px; font-weight:800; letter-spacing:.55px}
+.badge{padding:5px 10px; border-radius:999px; font-size:11px; letter-spacing:.3px; text-transform:uppercase; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); color:var(--gold);}
+.actionBar{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:100%;}
+.actionBtn{
+  height:62px; border:none; border-radius:16px; color:white; background:linear-gradient(180deg,#232a36,#1b222c);
+  border:1px solid rgba(255,255,255,.08); box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.06);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer;
+  transition:transform .08s ease, filter .15s ease, box-shadow .15s ease;
+}
+.actionBtn:hover{filter:brightness(1.09); box-shadow:0 10px 22px rgba(0,0,0,.28), 0 0 18px rgba(255,255,255,.06), inset 0 1px 0 rgba(255,255,255,.08);}
+.actionBtn:active{transform:translateY(1px)}
+.actionBtn:disabled{opacity:.45; filter:grayscale(.2); cursor:not-allowed}
+.actionBtn.active{box-shadow:0 0 0 2px rgba(255,255,255,.08), 0 0 20px rgba(255,220,120,.16), 0 10px 22px rgba(0,0,0,.3);}
+.actionBtn .ico{font-size:21px}
+.actionBtn .txt{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px}
+.attack{background:linear-gradient(180deg,#602727,#381717)}
+.defense{background:linear-gradient(180deg,#274767,#182b40)}
+.skill{background:linear-gradient(180deg,#56336f,#2f1c40)}
+.potion{background:linear-gradient(180deg,#2d6142,#163726)}
+
+.map{grid-column:1; grid-row:3}
+.inventory{grid-column:2; grid-row:3}
+.mapContent,.inventoryContent{height:100%; display:grid; grid-template-rows:auto auto auto 1fr auto; gap:10px; padding:12px;}
+.sectionTitle{font-size:18px; font-weight:800; color:var(--gold)}
+.meta{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+.progress{height:10px; border-radius:999px; overflow:hidden; background:#11161d; border:1px solid rgba(255,255,255,.06);}
+.progress span{display:block; height:100%; width:0%; background:linear-gradient(90deg,#8e5b2b,#d8b16b); box-shadow:0 0 12px rgba(216,177,107,.25); transition: width .3s ease;}
+.mapCanvas{
+  position:relative; min-height:230px; border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,.08);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.06), transparent 18%),
+    radial-gradient(circle at 75% 30%, rgba(255,205,120,.08), transparent 22%),
+    linear-gradient(180deg,#2c241d 0%, #17110d 100%);
+}
+.mapCanvas::before{
+  content:""; position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02) 1px, transparent 1px, transparent 30px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.02) 1px, transparent 1px, transparent 30px);
+  pointer-events:none;
+}
+.mapCanvas::after{content:""; position:absolute; inset:0; background:radial-gradient(circle at center, transparent 45%, rgba(0,0,0,.18) 100%); pointer-events:none;}
+.mapCanvas svg{position:absolute; inset:0; width:100%; height:100%}
+.mnode{
+  position:absolute; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  transform:translate(-50%,-50%); border:2px solid rgba(255,255,255,.38); color:white; font-size:24px; font-weight:800;
+  box-shadow:0 8px 18px rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.16);
+  transition:transform .15s ease, filter .15s ease, box-shadow .2s ease; cursor:pointer;
+}
+.mnode.locked{opacity:.35; filter:grayscale(.35); cursor:not-allowed}
+.mnode.available:hover{transform:translate(-50%,-50%) scale(1.08); filter:brightness(1.08)}
+.mnode::after{
+  content:attr(data-label); position:absolute; bottom:-24px; white-space:nowrap;
+  font-size:11px; color:#e0d7c9; letter-spacing:.25px;
+}
+.current{animation:pulseNode 1.8s infinite ease-in-out;}
+@keyframes pulseNode{
+  0%,100%{box-shadow:0 0 0 6px rgba(255,225,155,.12), 0 0 16px rgba(255,206,100,.24), 0 8px 18px rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.16)}
+  50%{box-shadow:0 0 0 8px rgba(255,225,155,.16), 0 0 26px rgba(255,206,100,.36), 0 8px 18px rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.16)}
+}
+.completed{opacity:.7}
+.m1{left:12%;top:70%;background:linear-gradient(180deg,#c37c45,#82461f)}
+.m2{left:16%;top:34%;background:linear-gradient(180deg,#d3b64b,#86680e)}
+.m3{left:38%;top:52%;background:linear-gradient(180deg,#67b07c,#2d6b3b)}
+.m4{left:58%;top:26%;background:linear-gradient(180deg,#9f7ef0,#5a35b7)}
+.m5{left:66%;top:72%;background:linear-gradient(180deg,#5ea7cf,#285a75)}
+.m6{left:88%;top:46%;background:linear-gradient(180deg,#c65a64,#76202a)}
+.routeInfo{font-size:13px; color:var(--muted); line-height:1.45}
+
+.invGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+.slot{
+  min-height:68px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04);
+  display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; font-size:14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+.buffBox{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:10px; font-size:13px; line-height:1.45;}
+
+.floating{position:absolute; pointer-events:none; font-weight:800; font-size:20px; text-shadow:0 2px 10px rgba(0,0,0,.45); animation:floatUp .9s ease-out forwards;}
+@keyframes floatUp{0%{opacity:0; transform:translateY(12px) scale(.92)}20%{opacity:1}100%{opacity:0; transform:translateY(-28px) scale(1.04)}}
+.hitFlash{animation:hitFlash .28s ease;}
+@keyframes hitFlash{0%{filter:brightness(1); transform:scale(1)}30%{filter:brightness(1.45); transform:scale(1.03)}100%{filter:brightness(1); transform:scale(1)}}
+
+@media (max-width:1100px){
+  .app{height:auto; min-height:100vh; grid-template-columns:1fr; grid-template-rows:auto auto auto auto;}
+  .enemy,.heroWrap,.map,.inventory{grid-column:auto;grid-row:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <section class="panel enemy" id="enemyPanel">
+    <div class="card">
+      <div class="head">
+        <div class="title">ENEMIC</div>
+        <div class="badge" id="enemyBadge">Sala</div>
+      </div>
+      <div class="image" id="enemyImage">🌫️</div>
+      <div class="vignette"></div>
+      <div class="scan"></div>
+
+      <div class="overlay topOverlay">
+        <strong id="enemyName">Sense enemic</strong>
+        <div class="small" id="enemySub">Tria un node del mapa</div>
+        <div class="hpWrap">
+          <div class="hpBar">
+            <div class="delayed" id="enemyBarDelay" style="width:0%"></div>
+            <span class="main" id="enemyBar" style="width:0%"></span>
+          </div>
+          <div class="small"><strong style="color:#fff" id="enemyHpText">—</strong></div>
+        </div>
+        <div class="overlayRow">
+          <span class="tag">Estat: <span class="blue" id="enemyState">Cap</span></span>
+          <span class="tag">Intenció: <span class="red" id="enemyIntent">Espera</span></span>
+        </div>
+      </div>
+
+      <div class="overlay bottomOverlay">
+        <div class="stats">
+          <div class="stat"><span class="k">HP</span><span class="v" id="enemyHpStat">—</span></div>
+          <div class="stat"><span class="k">ATK</span><span class="v" id="enemyAtk">—</span></div>
+          <div class="stat"><span class="k">DEF</span><span class="v" id="enemyDef">—</span></div>
+          <div class="stat"><span class="k">LVL</span><span class="v" id="enemyLvl">—</span></div>
+          <div class="stat"><span class="k">XP</span><span class="v" id="enemyXpReward">—</span></div>
+          <div class="stat"><span class="k">OR</span><span class="v" id="enemyGoldReward">—</span></div>
+        </div>
+        <div class="hudTrail">
+          <span class="miniPill" id="enemyLog1">Sense <span class="red">objectiu</span></span>
+          <span class="miniPill" id="enemyLog2">Mapa <span class="green">actiu</span></span>
+          <span class="miniPill" id="enemyLog3">Run <span class="green">iniciada</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="heroWrap">
+    <div class="panel hero" id="heroPanel">
+      <div class="heroHealth">
+        <div class="icon">❤️</div>
+        <div class="track">
+          <div class="delay" id="heroVerticalDelay" style="height:100%"></div>
+          <div class="fill" id="heroVerticalFill" style="height:100%"></div>
+        </div>
+        <div class="value" id="heroVerticalValue">30/30</div>
+      </div>
+      <div class="card">
+        <div class="head">
+          <div class="title">HEROI</div>
+          <div class="badge">Run V4</div>
+        </div>
+        <div class="image" id="heroImage">🧙</div>
+        <div class="vignette"></div>
+        <div class="scan"></div>
+
+        <div class="overlay topOverlay">
+          <strong>Kael</strong>
+          <div class="small">Mag · Nivell <span id="heroLevelTop">1</span></div>
+          <div class="hpWrap">
+            <div class="hpBar">
+              <div class="delayed" id="heroBarDelay" style="width:100%"></div>
+              <span class="main" id="heroBar" style="width:100%"></span>
+            </div>
+            <div class="small"><strong style="color:#fff" id="heroHpText">30 / 30</strong></div>
+          </div>
+          <div class="overlayRow">
+            <span class="tag">Estat: <span class="green" id="heroState">Normal</span></span>
+            <span class="tag">Skill: <span class="small" style="color:#d8e2ef" id="skillCdText">Llista</span></span>
+          </div>
+        </div>
+
+        <div class="overlay bottomOverlay">
+          <div class="stats">
+            <div class="stat"><span class="k">HP</span><span class="v" id="heroHpStat">30</span></div>
+            <div class="stat"><span class="k">ATK</span><span class="v" id="heroAtk">5</span></div>
+            <div class="stat"><span class="k">DEF</span><span class="v" id="heroDef">3</span></div>
+            <div class="stat"><span class="k">LVL</span><span class="v" id="heroLevel">1</span></div>
+            <div class="stat"><span class="k">XP</span><span class="v" id="heroXp">0/10</span></div>
+            <div class="stat"><span class="k">OR</span><span class="v" id="heroGold">0</span></div>
+          </div>
+          <div class="hudTrail">
+            <span class="miniPill" id="heroLog1">Comença la <span class="green">run</span></span>
+            <span class="miniPill" id="heroLog2">Pocions <span class="blue" id="heroPotionsPill">2</span></span>
+            <span class="miniPill" id="heroLog3">Explora el <span class="blue">mapa</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actionBar">
+      <button class="actionBtn attack" id="btnAttack"><span class="ico">⚔️</span><span class="txt">Atac</span></button>
+      <button class="actionBtn defense" id="btnDefense"><span class="ico">🛡️</span><span class="txt">Defensa</span></button>
+      <button class="actionBtn skill" id="btnSkill"><span class="ico">✨</span><span class="txt">Skill</span></button>
+      <button class="actionBtn potion" id="btnPotion"><span class="ico">🧪</span><span class="txt">Poció</span></button>
+    </div>
+  </section>
+
+  <section class="panel map">
+    <div class="mapContent">
+      <div class="sectionTitle">Mapa de la run</div>
+      <div class="meta">
+        <span id="depthText">Profunditat 1 · Entrada</span>
+        <span id="routeText">Tria node disponible</span>
+      </div>
+      <div class="progress"><span id="runProgress"></span></div>
+      <div class="mapCanvas">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pathGlow" x1="0" x2="1">
+              <stop offset="0%" stop-color="rgba(255,230,170,.18)"/>
+              <stop offset="50%" stop-color="rgba(255,210,120,.38)"/>
+              <stop offset="100%" stop-color="rgba(255,230,170,.18)"/>
+            </linearGradient>
+          </defs>
+          <line x1="12" y1="70" x2="16" y2="34" stroke="url(#pathGlow)" stroke-width="1.4"/>
+          <line x1="12" y1="70" x2="38" y2="52" stroke="url(#pathGlow)" stroke-width="1.8"/>
+          <line x1="16" y1="34" x2="38" y2="52" stroke="rgba(255,230,170,.25)" stroke-width="1.2"/>
+          <line x1="38" y1="52" x2="58" y2="26" stroke="url(#pathGlow)" stroke-width="1.8"/>
+          <line x1="38" y1="52" x2="66" y2="72" stroke="rgba(255,230,170,.25)" stroke-width="1.2"/>
+          <line x1="58" y1="26" x2="88" y2="46" stroke="url(#pathGlow)" stroke-width="2"/>
+          <line x1="66" y1="72" x2="88" y2="46" stroke="rgba(255,230,170,.22)" stroke-width="1.1"/>
+        </svg>
+        <div class="mnode m1 available" data-id="m1" data-label="Combat">⚔️</div>
+        <div class="mnode m2 available" data-id="m2" data-label="Cofre">💰</div>
+        <div class="mnode m3 available" data-id="m3" data-label="Descans">🔥</div>
+        <div class="mnode m4 locked" data-id="m4" data-label="Elite">👹</div>
+        <div class="mnode m5 locked" data-id="m5" data-label="Mercader">🧙</div>
+        <div class="mnode m6 locked" data-id="m6" data-label="Boss">👑</div>
+      </div>
+      <div class="routeInfo" id="mapInfo">
+        Comença per <strong>Combat</strong>, <strong>Cofre</strong> o <strong>Descans</strong>. Cada node resolt desbloqueja més profunditat.
+      </div>
+    </div>
+  </section>
+
+  <section class="panel inventory">
+    <div class="inventoryContent">
+      <div class="sectionTitle">Inventari i efectes</div>
+      <div class="meta">
+        <span>Equipament ràpid</span>
+        <span id="inventoryMeta">Espais ocupats: 1/4</span>
+      </div>
+      <div class="invGrid" id="inventoryGrid">
+        <div class="slot">Bastó inicial</div>
+        <div class="slot">— Buit —</div>
+        <div class="slot">— Buit —</div>
+        <div class="slot">— Buit —</div>
+      </div>
+      <div class="buffBox" id="buffBox">
+        <div style="font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Passius i buffs</div>
+        <div>• Bonus actual: <span class="green">Cap</span></div>
+        <div>• Efecte actiu: <span class="blue">Cap</span></div>
+        <div>• Objecte especial: <span style="color:var(--muted)">pendent</span></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  const enemyTemplates = {
+    m1: { key:'goblin', name:'Goblin Ronyós', sub:'Nivell 1 · Combat', emoji:'👹', baseHp:12, baseAtk:4, baseDef:1, baseXp:5, baseGold:5, badge:'Combat', state:'Normal', intent:'Atacar' },
+    m4: { key:'ogre', name:'Ogre Brutal', sub:'Nivell 3 · Elite', emoji:'👺', baseHp:26, baseAtk:7, baseDef:3, baseXp:12, baseGold:10, badge:'Elite', state:'Furiós', intent:'Cop fort' },
+    m6: { key:'necro', name:'Nigromant Fosc', sub:'Boss final', emoji:'🧛', baseHp:40, baseAtk:9, baseDef:4, baseXp:20, baseGold:18, badge:'Boss', state:'Concentrat', intent:'Raig obscur' }
+  };
+  const rewardTemplates = {
+    m2: { gold: 10, potion: 1, label:'Cofre' },
+    m3: { heal: 10, label:'Descans' },
+    m5: { atk: 1, label:'Mercader' }
+  };
+  const nextUnlocks = {
+    m1:['m4'], m2:['m4','m5'], m3:['m5'], m4:['m6'], m5:['m6'], m6:[]
+  };
+
+  const state = {
+    hero: { hp:30, maxHp:30, atk:5, def:3, lvl:1, xp:0, xpNext:10, gold:0, potions:2, shielded:false, skillCd:0, inventory:['Bastó inicial'] },
+    currentNode: null,
+    currentEnemy: null,
+    completed: new Set(),
+    unlocked: new Set(['m1','m2','m3']),
+    inCombat: false
+  };
+
+  const $ = id => document.getElementById(id);
+  const nodeEls = [...document.querySelectorAll('.mnode')];
+
+  function pct(v,max){ return Math.max(0, Math.min(100, (v/max)*100)); }
+
+  function scaledEnemy(template){
+    const depth = template.badge === 'Combat' ? 1 : template.badge === 'Elite' ? 3 : 4;
+    return {
+      name: template.name,
+      sub: template.sub,
+      emoji: template.emoji,
+      hp: template.baseHp + (state.hero.lvl - 1) * (template.badge === 'Boss' ? 3 : 2),
+      maxHp: template.baseHp + (state.hero.lvl - 1) * (template.badge === 'Boss' ? 3 : 2),
+      atk: template.baseAtk + Math.floor((state.hero.lvl - 1) / 2),
+      def: template.baseDef + Math.floor((state.hero.lvl - 1) / 3),
+      lvl: depth + Math.floor((state.hero.lvl - 1) / 2),
+      xp: template.baseXp + (state.hero.lvl - 1) * 2,
+      gold: template.baseGold + (state.hero.lvl - 1) * 2,
+      badge: template.badge,
+      state: template.state,
+      intent: template.intent
+    };
+  }
+
+  function setHeroLogs(a,b,c){ $('heroLog1').innerHTML=a; $('heroLog2').innerHTML=b; $('heroLog3').innerHTML=c; }
+  function setEnemyLogs(a,b,c){ $('enemyLog1').innerHTML=a; $('enemyLog2').innerHTML=b; $('enemyLog3').innerHTML=c; }
+
+  function flash(el){
+    el.classList.remove('hitFlash');
+    void el.offsetWidth;
+    el.classList.add('hitFlash');
+  }
+
+  function floatText(parent, text, cls='red', x='72%', y='26%'){
+    const el = document.createElement('div');
+    el.className = `floating ${cls}`;
+    el.textContent = text;
+    el.style.left = x;
+    el.style.top = y;
+    parent.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
+  function updateHeroUI(){
+    const h = state.hero;
+    const p = pct(h.hp, h.maxHp);
+    $('heroBar').style.width = p + '%';
+    $('heroHpText').textContent = `${h.hp} / ${h.maxHp}`;
+    $('heroHpStat').textContent = h.hp;
+    $('heroVerticalFill').style.height = p + '%';
+    $('heroVerticalValue').textContent = `${h.hp}/${h.maxHp}`;
+    $('heroAtk').textContent = h.atk;
+    $('heroDef').textContent = h.def;
+    $('heroLevel').textContent = h.lvl;
+    $('heroLevelTop').textContent = h.lvl;
+    $('heroXp').textContent = `${h.xp}/${h.xpNext}`;
+    $('heroGold').textContent = h.gold;
+    $('heroPotionsPill').textContent = h.potions;
+    $('heroState').textContent = h.shielded ? 'Escut' : 'Normal';
+    $('skillCdText').textContent = h.skillCd > 0 ? `CD ${h.skillCd}` : 'Llista';
+    setTimeout(() => {
+      $('heroBarDelay').style.width = p + '%';
+      $('heroVerticalDelay').style.height = p + '%';
+    }, 180);
+    updateInventory();
+  }
+
+  function updateEnemyUI(){
+    const e = state.currentEnemy;
+    if(!e){
+      $('enemyImage').textContent = '🌫️';
+      $('enemyName').textContent = 'Sense enemic';
+      $('enemySub').textContent = 'Tria un node del mapa';
+      $('enemyHpText').textContent = '—';
+      $('enemyBar').style.width = '0%';
+      $('enemyBarDelay').style.width = '0%';
+      $('enemyHpStat').textContent = '—';
+      $('enemyAtk').textContent = '—';
+      $('enemyDef').textContent = '—';
+      $('enemyLvl').textContent = '—';
+      $('enemyXpReward').textContent = '—';
+      $('enemyGoldReward').textContent = '—';
+      $('enemyState').textContent = 'Cap';
+      $('enemyIntent').textContent = 'Espera';
+      $('enemyBadge').textContent = 'Sala';
+      return;
+    }
+    const p = pct(e.hp, e.maxHp);
+    $('enemyImage').textContent = e.emoji;
+    $('enemyName').textContent = e.name;
+    $('enemySub').textContent = e.sub;
+    $('enemyHpText').textContent = `${e.hp} / ${e.maxHp}`;
+    $('enemyBar').style.width = p + '%';
+    $('enemyHpStat').textContent = e.hp;
+    $('enemyAtk').textContent = e.atk;
+    $('enemyDef').textContent = e.def;
+    $('enemyLvl').textContent = e.lvl;
+    $('enemyXpReward').textContent = e.xp;
+    $('enemyGoldReward').textContent = e.gold;
+    $('enemyState').textContent = e.state;
+    $('enemyIntent').textContent = e.intent;
+    $('enemyBadge').textContent = e.badge;
+    setTimeout(() => $('enemyBarDelay').style.width = p + '%', 180);
+  }
+
+  function updateInventory(){
+    const slots = [...state.hero.inventory];
+    while(slots.length < 4) slots.push('— Buit —');
+    $('inventoryGrid').innerHTML = slots.map(s => `<div class="slot">${s}</div>`).join('');
+    $('inventoryMeta').textContent = `Espais ocupats: ${state.hero.inventory.length}/4`;
+    $('buffBox').innerHTML = `
+      <div style="font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Passius i buffs</div>
+      <div>• Bonus actual: <span class="green">${state.hero.atk > 5 ? '+' + (state.hero.atk - 5) + ' ATK' : 'Cap'}</span></div>
+      <div>• Efecte actiu: <span class="blue">${state.hero.shielded ? 'Escut actiu' : 'Cap'}</span></div>
+      <div>• Pocions: <span style="color:var(--muted)">${state.hero.potions}</span></div>
+    `;
+  }
+
+  function updateButtons(){
+    const inCombat = state.inCombat && state.hero.hp > 0;
+    $('btnAttack').disabled = !inCombat;
+    $('btnDefense').disabled = !inCombat;
+    $('btnSkill').disabled = !inCombat || state.hero.skillCd > 0;
+    $('btnPotion').disabled = state.hero.potions <= 0 || state.hero.hp >= state.hero.maxHp || state.hero.hp <= 0;
+  }
+
+  function updateProgress(){
+    $('runProgress').style.width = ((state.completed.size / 6) * 100) + '%';
+  }
+
+  function updateMap(){
+    nodeEls.forEach(node => {
+      const id = node.dataset.id;
+      node.classList.remove('available','locked','completed','current');
+      if(state.currentNode === id) node.classList.add('current');
+      else if(state.completed.has(id)) node.classList.add('completed');
+      else if(state.unlocked.has(id)) node.classList.add('available');
+      else node.classList.add('locked');
+    });
+  }
+
+  function activateButton(btn){
+    document.querySelectorAll('.actionBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setTimeout(() => btn.classList.remove('active'), 320);
+  }
+
+  function unlockNext(nodeId){
+    state.completed.add(nodeId);
+    (nextUnlocks[nodeId] || []).forEach(id => state.unlocked.add(id));
+    updateMap();
+    updateProgress();
+  }
+
+  function gainRewards(xp, gold){
+    const h = state.hero;
+    h.xp += xp;
+    h.gold += gold;
+    while(h.xp >= h.xpNext){
+      h.xp -= h.xpNext;
+      h.lvl += 1;
+      h.maxHp += 6;
+      h.hp = h.maxHp;
+      h.atk += 1;
+      h.def += 1;
+      h.xpNext += 6;
+      floatText($('heroPanel'), 'LVL UP', 'green', '70%', '18%');
+      setHeroLogs(`Puja a <span class="green">nivell ${h.lvl}</span>`, `Guanya <span class="green">+1 ATK</span>`, `I també <span class="blue">+1 DEF</span>`);
+    }
+    updateHeroUI();
+  }
+
+  function resolveNode(id){
+    state.currentNode = id;
+    updateMap();
+
+    if(id in enemyTemplates){
+      state.currentEnemy = scaledEnemy(enemyTemplates[id]);
+      state.inCombat = true;
+      updateEnemyUI();
+      $('depthText').textContent = id === 'm1' ? 'Profunditat 1 · Combat' : id === 'm4' ? 'Profunditat 2 · Elite' : 'Profunditat 3 · Boss';
+      $('routeText').textContent = `Node ${id.toUpperCase()} actiu`;
+      $('mapInfo').innerHTML = `Has entrat a <strong>${state.currentEnemy.name}</strong>. Resol el combat per continuar la run.`;
+      setEnemyLogs(`Apareix <span class="red">${state.currentEnemy.name}</span>`, `Botí <span class="green">+${state.currentEnemy.gold} or</span>`, `Recompensa <span class="green">+${state.currentEnemy.xp} XP</span>`);
+    } else {
+      state.currentEnemy = null;
+      state.inCombat = false;
+      const r = rewardTemplates[id];
+      if(id === 'm2'){
+        state.hero.gold += r.gold;
+        state.hero.potions += r.potion;
+        setHeroLogs(`Trobes <span class="green">${r.gold} or</span>`, `Guanyes <span class="blue">+${r.potion} poció</span>`, `Cofre <span class="green">obert</span>`);
+        floatText($('heroPanel'), `+${r.gold} or`, 'green', '70%', '24%');
+        $('mapInfo').innerHTML = 'El <strong>cofre</strong> t’ha donat recursos per a seguir.';
+      } else if(id === 'm3'){
+        const heal = Math.min(r.heal, state.hero.maxHp - state.hero.hp);
+        state.hero.hp += heal;
+        setHeroLogs(`Recuperes <span class="green">${heal} vida</span>`, `Descans <span class="blue">complet</span>`, `La run continua <span class="green">millor</span>`);
+        floatText($('heroPanel'), `+${heal}`, 'green', '70%', '24%');
+        $('mapInfo').innerHTML = 'El <strong>descans</strong> t’ha deixat en millor estat.';
+      } else if(id === 'm5'){
+        state.hero.atk += r.atk;
+        if(state.hero.inventory.length < 4) state.hero.inventory.push('Millora de mercader');
+        setHeroLogs(`Compres <span class="green">millora</span>`, `Guanyes <span class="green">+${r.atk} ATK</span>`, `Mercader <span class="blue">satisfet</span>`);
+        floatText($('heroPanel'), `+${r.atk} ATK`, 'green', '70%', '24%');
+        $('mapInfo').innerHTML = 'El <strong>mercader</strong> t’ha fet una oferta útil.';
+      }
+      $('depthText').textContent = 'Profunditat 1-2 · Esdeveniment';
+      $('routeText').textContent = `Node ${id.toUpperCase()} resolt`;
+      updateHeroUI();
+      updateEnemyUI();
+      unlockNext(id);
+    }
+    updateButtons();
+  }
+
+  function enemyCounter(){
+    const e = state.currentEnemy;
+    if(!e) return;
+    const h = state.hero;
+    const raw = e.atk;
+    const dmg = h.shielded ? Math.max(1, raw - 3) : raw;
+    h.hp = Math.max(0, h.hp - dmg);
+    const blocked = h.shielded;
+    h.shielded = false;
+    setHeroLogs(
+      `Rep <span class="red">${dmg} dany</span>`,
+      blocked ? `Escut <span class="blue">absorbeix</span>` : `Colp <span class="red">directe</span>`,
+      `Vida actual <span class="green">${h.hp}</span>`
+    );
+    flash($('heroImage'));
+    floatText($('heroPanel'), `-${dmg}`, 'red', '74%', '24%');
+    if(h.skillCd > 0) h.skillCd -= 1;
+    updateHeroUI();
+
+    if(h.hp <= 0){
+      state.inCombat = false;
+      $('mapInfo').innerHTML = '💀 El heroi ha caigut. Reinicia la pàgina per tornar a començar la run.';
+    }
+  }
+
+  function winCombat(){
+    const e = state.currentEnemy;
+    gainRewards(e.xp, e.gold);
+    setEnemyLogs(`<span class="green">Derrotat</span>`, `Botí <span class="green">+${e.gold} or</span>`, `XP <span class="green">+${e.xp}</span>`);
+    const current = state.currentNode;
+    state.currentEnemy = null;
+    state.inCombat = false;
+    updateEnemyUI();
+    if(current === 'm6'){
+      unlockNext(current);
+      $('routeText').textContent = 'Boss derrotat';
+      $('mapInfo').innerHTML = '🏆 Has completat la run canònica V4.';
+    } else {
+      unlockNext(current);
+      $('routeText').textContent = `Node ${current.toUpperCase()} superat`;
+      $('mapInfo').innerHTML = 'Combat resolt. Tria la següent bifurcació.';
+    }
+  }
+
+  function heroAttack(){
+    if(!state.inCombat || !state.currentEnemy) return;
+    const e = state.currentEnemy;
+    const dmg = Math.max(1, state.hero.atk - e.def + 2);
+    e.hp = Math.max(0, e.hp - dmg);
+    setHeroLogs(`Fa <span class="red">${dmg} dany</span>`, `Atac <span class="green">encertat</span>`, `Segueix la <span class="blue">pressió</span>`);
+    setEnemyLogs(`Rep <span class="red">${dmg} dany</span>`, `Es queda <span class="blue">tocat</span>`, `Intenció <span class="red">${e.intent}</span>`);
+    flash($('enemyImage'));
+    floatText($('enemyPanel'), `-${dmg}`, 'red', '72%', '28%');
+    updateEnemyUI();
+    if(e.hp <= 0) winCombat();
+    else enemyCounter();
+    updateButtons();
+  }
+
+  function heroDefend(){
+    if(!state.inCombat) return;
+    state.hero.shielded = true;
+    setHeroLogs(`Activa <span class="blue">defensa</span>`, `Guanya <span class="green">bloqueig</span>`, `Reduirà el pròxim <span class="blue">cop</span>`);
+    flash($('heroImage'));
+    floatText($('heroPanel'), '+ESCUT', 'blue', '74%', '30%');
+    updateHeroUI();
+    enemyCounter();
+    updateButtons();
+  }
+
+  function heroSkill(){
+    if(!state.inCombat || state.hero.skillCd > 0 || !state.currentEnemy) return;
+    const e = state.currentEnemy;
+    const dmg = Math.max(1, state.hero.atk + 4 - e.def);
+    e.hp = Math.max(0, e.hp - dmg);
+    state.hero.skillCd = 2;
+    setHeroLogs(`Llança <span class="red">skill</span>`, `Fa <span class="red">${dmg} dany</span>`, `Skill en <span class="blue">cooldown</span>`);
+    setEnemyLogs(`Rep <span class="red">${dmg} dany</span>`, `Queda <span class="blue">trencat</span>`, `Moral <span class="red">baixa</span>`);
+    flash($('enemyImage'));
+    floatText($('enemyPanel'), `-${dmg}`, 'red', '72%', '24%');
+    updateEnemyUI();
+    updateHeroUI();
+    if(e.hp <= 0) winCombat();
+    else enemyCounter();
+    updateButtons();
+  }
+
+  function usePotion(){
+    if(state.hero.potions <= 0 || state.hero.hp >= state.hero.maxHp) return;
+    const heal = 8;
+    state.hero.potions -= 1;
+    state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
+    setHeroLogs(`Beu <span class="green">poció</span>`, `Recupera <span class="green">${heal} vida</span>`, `Pocions restants <span class="blue">${state.hero.potions}</span>`);
+    flash($('heroImage'));
+    floatText($('heroPanel'), `+${heal}`, 'green', '74%', '26%');
+    updateHeroUI();
+    updateButtons();
+  }
+
+  nodeEls.forEach(node => node.addEventListener('click', () => {
+    const id = node.dataset.id;
+    if(!state.unlocked.has(id) || state.completed.has(id) || state.inCombat || state.hero.hp <= 0) return;
+    resolveNode(id);
+  }));
+
+  $('btnAttack').addEventListener('click', e => { activateButton(e.currentTarget); heroAttack(); });
+  $('btnDefense').addEventListener('click', e => { activateButton(e.currentTarget); heroDefend(); });
+  $('btnSkill').addEventListener('click', e => { activateButton(e.currentTarget); heroSkill(); });
+  $('btnPotion').addEventListener('click', e => { activateButton(e.currentTarget); usePotion(); });
+
+  updateHeroUI();
+  updateEnemyUI();
+  updateMap();
+  updateProgress();
+  updateButtons();
+})();
+</script>
+</body>
+</html>
